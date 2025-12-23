@@ -22,11 +22,9 @@
                   name="files"
                   multiple
                   required>
-          {% if form.files.errors %}
-            {% for error in form.files.errors %}
-              <small class="text-danger">{{ error }}</small>
-            {% endfor %}
-          {% endif %}
+          {% for error in form.files.errors %}
+            <small class="text-danger">{{ error }}</small>
+          {% endfor %}
           <small class="form-text text-muted">
             Можно выбрать несколько файлов
           </small>
@@ -40,24 +38,24 @@
   </div>
 
   {% if uploaded_files %}
-  <div class="container mt-4">
-    <div class="row">
-      <div class="col-md-7 mx-auto">
-  
-        <ul class="list-group list-group-flush">
-          {% for file_info in uploaded_files %}
-            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-              <span>{{ file_info.name }}</span>
-              <a href="{{ file_info.short_url }}" target="_blank" download>
-                {{ file_info.short_url }}
-              </a>
-            </li>
-          {% endfor %}
-        </ul>
-  
+    <div class="container mt-4">
+      <div class="row">
+        <div class="col-md-7 mx-auto">
+    
+          <ul class="list-group list-group-flush">
+            {% for file_info in uploaded_files %}
+              <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                <span>{{ file_info.name }}</span>
+                <a href="{{ file_info.short_url }}" target="_blank" download>
+                  {{ file_info.short_url }}
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+    
+        </div>
       </div>
     </div>
-  </div>
   {% endif %}
 
 {% endblock %}
