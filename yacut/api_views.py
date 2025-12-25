@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request
+
 from http import HTTPStatus
 
 from yacut.error_handlers import APIError
@@ -19,29 +20,25 @@ def create_short_link():
     data = request.get_json(silent=True)
 
     if data is None:
-        raise APIError(MISSING_REQUEST_BODY, HTTPStatus.BAD_REQUEST)
+        raise APIError(MISSING_REQUEST_BODY)
 
-    url = data.get('url')
-    if not url:
-        raise APIError(LINK_REQUIRED_MESSAGE, HTTPStatus.BAD_REQUEST)
-
-    short = data.get('custom_id')
+    if 'url' not in data:
+        raise APIError(LINK_REQUIRED_MESSAGE)
 
     try:
-        result = URLMap.create(original_url=url, short=short)
-
-        if isinstance(result, tuple) and result[0] is None:
-            raise APIError(result[1], HTTPStatus.BAD_REQUEST)
-
-        url_map = result
+        url_map = URLMap.create(
+            original_url=data['url'],
+            short=data.get('custom_id'),
+            validate=True
+        )
 
         return jsonify({
             'url': url_map.original,
             'short_link': url_map.get_short_url()
         }), HTTPStatus.CREATED
 
-    except RuntimeError as e:
-        raise APIError(str(e), HTTPStatus.BAD_REQUEST)
+    except (RuntimeError, ValueError) as e:
+        raise APIError(str(e))
 
 
 @api_blueprint.route('/api/id/<short>/', methods=['GET'])

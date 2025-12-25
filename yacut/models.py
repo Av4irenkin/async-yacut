@@ -12,6 +12,7 @@ from yacut.constants import (
     SHORT_PATTERN,
     SHORT_CHARS,
     FILES_ENDPOINT,
+    REDIRECT_VIEW_NAME
 )
 
 INVALID_SHORT_MESSAGE = 'Указано недопустимое имя для короткой ссылки'
@@ -21,6 +22,10 @@ GENERATION_LIMIT_MESSAGE = (
 )
 SHORT_EXISTS_MESSAGE = (
     'Предложенный вариант короткой ссылки уже существует.'
+)
+TOO_LONG_URL_MESSAGE = (
+    'Длина URL не должна превышать'
+    f' {MAX_ORIGINAL_LENGTH} символов'
 )
 
 
@@ -49,32 +54,27 @@ class URLMap(db.Model):
             short = ''.join(
                 random.choices(SHORT_CHARS, k=GENERATED_SHORT_LENGTH)
             )
-            if not URLMap.get(short) and short != FILES_ENDPOINT:
+            if short != FILES_ENDPOINT and not URLMap.get(short):
                 return short
 
         raise RuntimeError(GENERATION_LIMIT_MESSAGE)
 
     def get_short_url(self):
         """Метод для получения полного короткого URL."""
-        return url_for('redirect_view', short=self.short, _external=True)
+        return url_for(REDIRECT_VIEW_NAME, short=self.short, _external=True)
 
     @staticmethod
-    def create(original_url, short=None):
+    def create(original_url, short=None, validate=True):
         """Метод для создания новой записи URLMap."""
+        if validate and len(original_url) > MAX_ORIGINAL_LENGTH:
+            raise ValueError(TOO_LONG_URL_MESSAGE)
+
         if not short:
             short = URLMap.get_unique_short()
-        else:
-            if short == FILES_ENDPOINT:
-                return None, SHORT_EXISTS_MESSAGE
-
-            if len(short) > MAX_SHORT_LENGTH:
-                return None, INVALID_SHORT_MESSAGE
-
-            if not SHORT_PATTERN.match(short):
-                return None, INVALID_SHORT_MESSAGE
-
-            if URLMap.get(short):
-                return None, SHORT_EXISTS_MESSAGE
+        elif short == FILES_ENDPOINT or URLMap.get(short) is not None:
+            raise ValueError(SHORT_EXISTS_MESSAGE)
+        elif len(short) > MAX_SHORT_LENGTH or not SHORT_PATTERN.match(short):
+            raise ValueError(INVALID_SHORT_MESSAGE)
 
         url_map = URLMap(original=original_url, short=short)
         db.session.add(url_map)

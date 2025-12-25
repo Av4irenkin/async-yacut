@@ -9,3 +9,4 @@ MAX_GENERATION_ATTEMPTS = 10
 SHORT_CHARS = string.ascii_letters + string.digits
 SHORT_PATTERN = re.compile(f'^[{re.escape(SHORT_CHARS)}]+$')
 FILES_ENDPOINT = 'files'
+REDIRECT_VIEW_NAME = 'redirect_view'

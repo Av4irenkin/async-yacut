@@ -12,29 +12,25 @@ HEADERS = {
     'Accept': 'application/json',
     'Authorization': f'OAuth {Config.DISK_TOKEN}'
 }
+BASE_URL = Config.YANDEX_DISK_BASE_URL
+FOLDER_NAME = f'app:/{Config.YANDEX_DISK_FOLDER}'
+VALUE_ERROR_MESSAGE = 'API вернул статус 204 No Content'
 
 
 class YaDiskUploader:
     """Класс для асинхронной загрузки файлов на Яндекс диск."""
-
-    base_url = Config.YANDEX_DISK_BASE_URL
 
     async def _make_request(self, method, endpoint, **kwargs):
         """Метод для выполнения HTTP-запросов."""
         async with aiohttp.ClientSession(headers=HEADERS) as session:
             async with session.request(
                 method,
-                f'{self.base_url}/{endpoint}',
+                f'{BASE_URL}/{endpoint}',
                 **kwargs
             ) as response:
                 response.raise_for_status()
                 if response.status == HTTPStatus.NO_CONTENT:
-                    raise aiohttp.ClientResponseError(
-                        response.request_info,
-                        response.history,
-                        status=response.status,
-                        message='No content'
-                    )
+                    raise ValueError(VALUE_ERROR_MESSAGE)
                 return await response.json()
 
     async def create_folder(self, folder_path):
@@ -80,22 +76,20 @@ class YaDiskUploader:
             f'{folder_name}/'
             f'{self._make_filename_safe(file.filename)}'
         )
-        file_content = file.read()
 
         await self.upload_file(
             await self.get_upload_link(file_path),
-            file_content
+            file.read()
         )
 
         return await self.get_download_link(file_path)
 
     async def upload_files(self, files):
         """Асинхронная загрузка файлов."""
-        folder_name = f'app:/{Config.YANDEX_DISK_FOLDER}'
         return [
             await self._process_single_file(
                 file,
-                folder_name
+                FOLDER_NAME
             )
             for file in files
         ]

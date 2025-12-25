@@ -1,7 +1,9 @@
 from flask import abort, flash, render_template, redirect
+
 from http import HTTPStatus
 
 from yacut import app
+from yacut.constants import REDIRECT_VIEW_NAME
 from yacut.disk_client import disk_uploader
 from yacut.models import URLMap
 from yacut.forms import URLForm, FileUploadForm
@@ -19,26 +21,24 @@ def index_view():
         return render_template('index.html', form=form)
 
     try:
-        url_map = URLMap.create(
-            original_url=form.original_link.data,
-            short=form.custom_id.data
+        return render_template(
+            'index.html',
+            form=form,
+            short_url=URLMap.create(
+                original_url=form.original_link.data,
+                short=form.custom_id.data,
+                validate=False
+            ).get_short_url()
         )
-    except Exception:
-        flash(SHORT_CREATION_ERROR, 'danger')
+    except (RuntimeError, ValueError):
+        flash(SHORT_CREATION_ERROR)
         return render_template('index.html', form=form)
 
-    return render_template(
-        'index.html',
-        form=form,
-        short_url=url_map.get_short_url()
-    )
 
-
-@app.route('/<short>')
+@app.route('/<short>', endpoint=REDIRECT_VIEW_NAME)
 def redirect_view(short):
     """Перенаправление по короткой ссылке."""
-    url_map = URLMap.get(short)
-    if not url_map:
+    if (url_map := URLMap.get(short)) is None:
         abort(HTTPStatus.NOT_FOUND)
     return redirect(url_map.original)
 
@@ -56,20 +56,28 @@ def files_view():
     try:
         download_urls = disk_uploader.upload_files_sync(files)
     except Exception:
-        flash(UPLOAD_ERROR, 'danger')
+        flash(UPLOAD_ERROR)
         return render_template('files.html', form=form)
 
-    uploaded_files = [
-        {'name': file.filename, 'short_url': url_map.get_short_url()}
-        for file, download_url in zip(files, download_urls)
-        for url_map in [
-            URLMap.create(original_url=download_url)
-        ]
-        if url_map is not None
-    ]
+    def process_file(file, download_url):
+        try:
+            return [{
+                'name': file.filename,
+                'short_url': URLMap.create(
+                    original_url=download_url,
+                    short=None,
+                    validate=True
+                ).get_short_url()
+            }]
+        except (RuntimeError, ValueError):
+            return []
 
     return render_template(
         'files.html',
         form=form,
-        uploaded_files=uploaded_files
+        uploaded_files=[
+            result
+            for file, download_url in zip(files, download_urls)
+            for result in process_file(file, download_url)
+        ]
     )
