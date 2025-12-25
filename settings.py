@@ -1,5 +1,7 @@
-from dotenv import load_dotenv
 import os
+
+from dotenv import load_dotenv
+
 
 load_dotenv()
 
@@ -11,4 +13,11 @@ class Config(object):
     )
     SECRET_KEY = os.getenv('SECRET_KEY', 'my-secret-key')
     DISK_TOKEN = os.getenv('DISK_TOKEN')
-    YANDEX_DISK_BASE_URL = os.getenv('YANDEX_DISK_BASE_URL')
+    YANDEX_DISK_BASE_URL = os.getenv(
+        'YANDEX_DISK_BASE_URL',
+        'https://cloud-api.yandex.net/v1/disk'
+    )
+    YANDEX_DISK_FOLDER = os.getenv(
+        'YANDEX_DISK_FOLDER',
+        'yacut_uploads'
+    )

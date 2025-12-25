@@ -1,12 +1,13 @@
-from flask import Blueprint, jsonify, request, url_for
+from flask import Blueprint, jsonify, request
 from http import HTTPStatus
 
+from yacut.error_handlers import APIError
 from yacut.models import URLMap
-from yacut.constants import (
-    LINK_REQUIRED_MESSAGE,
-    SHORT_NOT_FOUND_MESSAGE,
-    MISSING_REQUEST_BODY
-)
+
+
+LINK_REQUIRED_MESSAGE = '"url" является обязательным полем!'
+MISSING_REQUEST_BODY = 'Отсутствует тело запроса'
+SHORT_NOT_FOUND_MESSAGE = 'Указанный id не найден'
 
 
 api_blueprint = Blueprint('api', __name__)
@@ -18,61 +19,36 @@ def create_short_link():
     data = request.get_json(silent=True)
 
     if data is None:
-        return jsonify(
-            {'message': MISSING_REQUEST_BODY}
-        ), HTTPStatus.BAD_REQUEST
+        raise APIError(MISSING_REQUEST_BODY, HTTPStatus.BAD_REQUEST)
 
     url = data.get('url')
     if not url:
-        return jsonify(
-            {'message': LINK_REQUIRED_MESSAGE}
-        ), HTTPStatus.BAD_REQUEST
+        raise APIError(LINK_REQUIRED_MESSAGE, HTTPStatus.BAD_REQUEST)
 
-    custom_short = data.get('custom_id')
+    short = data.get('custom_id')
 
     try:
-        if custom_short:
-            url_map, error_message = URLMap.create(
-                original_url=url,
-                short=custom_short,
-                validate=True,
-                skip_existing_check=False
-            )
-        else:
-            url_map, error_message = URLMap.create(
-                original_url=url,
-                short=URLMap.get_unique_short(),
-                validate=False,
-                skip_existing_check=True
-            )
+        result = URLMap.create(original_url=url, short=short)
 
-        if error_message:
-            return jsonify(
-                {'message': error_message}
-            ), HTTPStatus.BAD_REQUEST
+        if isinstance(result, tuple) and result[0] is None:
+            raise APIError(result[1], HTTPStatus.BAD_REQUEST)
 
-        short_link = url_for(
-            'redirect_view',
-            short=url_map.short,
-            _external=True
-        )
+        url_map = result
 
         return jsonify({
             'url': url_map.original,
-            'short_link': short_link
+            'short_link': url_map.get_short_url()
         }), HTTPStatus.CREATED
 
     except RuntimeError as e:
-        return jsonify({'message': str(e)}), HTTPStatus.BAD_REQUEST
+        raise APIError(str(e), HTTPStatus.BAD_REQUEST)
 
 
 @api_blueprint.route('/api/id/<short>/', methods=['GET'])
 def get_original_link(short):
     """Метод получения оригинальной ссылки по короткому идентификатору."""
-    url_map = URLMap.get_short(short)
+    url_map = URLMap.get(short)
     if not url_map:
-        return jsonify(
-            {'message': SHORT_NOT_FOUND_MESSAGE}
-        ), HTTPStatus.NOT_FOUND
+        raise APIError(SHORT_NOT_FOUND_MESSAGE, HTTPStatus.NOT_FOUND)
 
     return jsonify({'url': url_map.original})

@@ -1,7 +1,23 @@
+from flask import jsonify, render_template
 from http import HTTPStatus
-from flask import render_template
 
 from yacut import db
+
+
+class APIError(Exception):
+    """Базовый класс исключений для API контроллеров."""
+
+    def __init__(self, message, status_code=HTTPStatus.BAD_REQUEST):
+        super().__init__()
+        self.message = message
+        self.status_code = status_code
+
+
+def api_error_handler(error):
+    """Обработчик ошибок API."""
+    response = jsonify({'message': error.message})
+    response.status_code = error.status_code
+    return response
 
 
 def page_not_found(e):

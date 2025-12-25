@@ -5,22 +5,23 @@ from http import HTTPStatus
 
 import aiohttp
 
+from settings import Config
 
-BASE_URL = os.getenv('YANDEX_DISK_BASE_URL')
-DEFAULT_HEADERS = {'Accept': 'application/json'}
+
+HEADERS = {
+    'Accept': 'application/json',
+    'Authorization': f'OAuth {Config.DISK_TOKEN}'
+}
 
 
 class YaDiskUploader:
     """Класс для асинхронной загрузки файлов на Яндекс диск."""
 
-    def __init__(self):
-        token = os.getenv('DISK_TOKEN')
-        self.base_url = 'https://cloud-api.yandex.net/v1/disk'
-        self.headers = {**DEFAULT_HEADERS, 'Authorization': f'OAuth {token}'}
+    base_url = Config.YANDEX_DISK_BASE_URL
 
     async def _make_request(self, method, endpoint, **kwargs):
         """Метод для выполнения HTTP-запросов."""
-        async with aiohttp.ClientSession(headers=self.headers) as session:
+        async with aiohttp.ClientSession(headers=HEADERS) as session:
             async with session.request(
                 method,
                 f'{self.base_url}/{endpoint}',
@@ -28,17 +29,21 @@ class YaDiskUploader:
             ) as response:
                 response.raise_for_status()
                 if response.status == HTTPStatus.NO_CONTENT:
-                    return None
+                    raise aiohttp.ClientResponseError(
+                        response.request_info,
+                        response.history,
+                        status=response.status,
+                        message='No content'
+                    )
                 return await response.json()
 
     async def create_folder(self, folder_path):
         """Метод создания папки на Яндекс диске."""
         try:
             await self._make_request('PUT', f'resources?path={folder_path}')
-            return True
         except aiohttp.ClientResponseError as e:
-            if e.status == HTTPStatus.CONFLICT:
-                return True
+            if e.status != HTTPStatus.CONFLICT:
+                raise
 
     async def get_upload_link(self, file_path):
         """Метод получения ссылки для загрузки файла."""
@@ -54,7 +59,6 @@ class YaDiskUploader:
         async with aiohttp.ClientSession() as session:
             async with session.put(upload_url, data=file_content) as response:
                 response.raise_for_status()
-                return True
 
     async def get_download_link(self, file_path):
         """Метод для получения ссылки для скачивания файла."""
@@ -68,33 +72,33 @@ class YaDiskUploader:
     def _make_filename_safe(self, filename):
         """Делает имя файла безопасным для Яндекс диска."""
         name, ext = os.path.splitext(filename)
-        return re.sub(r'[^\w\-\.]', '_', name)[:100] + ext
+        return re.sub(r'[^\w\-\.]', '_', name) + ext
+
+    async def _process_single_file(self, file, folder_name):
+        """Обработка одного файла."""
+        file_path = (
+            f'{folder_name}/'
+            f'{self._make_filename_safe(file.filename)}'
+        )
+        file_content = file.read()
+
+        await self.upload_file(
+            await self.get_upload_link(file_path),
+            file_content
+        )
+
+        return await self.get_download_link(file_path)
 
     async def upload_files(self, files):
         """Асинхронная загрузка файлов."""
-        results = []
-        folder_name = (
-            'app:/yacut_uploads'
-        )
-
-        for file in files:
-            original_filename = file.filename
-            file_content = file.read()
-            if not file_content:
-                raise ValueError('Файл пустой')
-            file_path = (
-                f'{folder_name}/'
-                f'{self._make_filename_safe(original_filename)}'
+        folder_name = f'app:/{Config.YANDEX_DISK_FOLDER}'
+        return [
+            await self._process_single_file(
+                file,
+                folder_name
             )
-            await self.upload_file(
-                await self.get_upload_link(file_path),
-                file_content
-            )
-            results.append({
-                'name': original_filename,
-                'download_url': await self.get_download_link(file_path),
-            })
-        return results
+            for file in files
+        ]
 
     def upload_files_sync(self, files):
         """Метод синхронной обертки для асинхронной загрузки."""
