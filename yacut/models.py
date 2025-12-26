@@ -15,15 +15,15 @@ from yacut.constants import (
     REDIRECT_VIEW_NAME
 )
 
-INVALID_SHORT_MESSAGE = 'Указано недопустимое имя для короткой ссылки'
-GENERATION_LIMIT_MESSAGE = (
+INVALID_SHORT = 'Указано недопустимое имя для короткой ссылки'
+GENERATION_LIMIT = (
     'Не удалось сгенерировать уникальную короткую ссылку'
     f' за {MAX_GENERATION_ATTEMPTS} попыток'
 )
-SHORT_EXISTS_MESSAGE = (
+SHORT_EXISTS = (
     'Предложенный вариант короткой ссылки уже существует.'
 )
-TOO_LONG_URL_MESSAGE = (
+TOO_LONG_URL = (
     'Длина URL не должна превышать'
     f' {MAX_ORIGINAL_LENGTH} символов'
 )
@@ -57,7 +57,7 @@ class URLMap(db.Model):
             if short != FILES_ENDPOINT and not URLMap.get(short):
                 return short
 
-        raise RuntimeError(GENERATION_LIMIT_MESSAGE)
+        raise RuntimeError(GENERATION_LIMIT)
 
     def get_short_url(self):
         """Метод для получения полного короткого URL."""
@@ -67,16 +67,19 @@ class URLMap(db.Model):
     def create(original_url, short=None, validate=True):
         """Метод для создания новой записи URLMap."""
         if validate and len(original_url) > MAX_ORIGINAL_LENGTH:
-            raise ValueError(TOO_LONG_URL_MESSAGE)
+            raise ValueError(TOO_LONG_URL)
 
-        if not short:
-            short = URLMap.get_unique_short()
-        elif short == FILES_ENDPOINT or URLMap.get(short) is not None:
-            raise ValueError(SHORT_EXISTS_MESSAGE)
-        elif len(short) > MAX_SHORT_LENGTH or not SHORT_PATTERN.match(short):
-            raise ValueError(INVALID_SHORT_MESSAGE)
+        if short:
+            if short == FILES_ENDPOINT or URLMap.get(short):
+                raise ValueError(SHORT_EXISTS)
+            if (len(short) > MAX_SHORT_LENGTH
+                    or not SHORT_PATTERN.match(short)):
+                raise ValueError(INVALID_SHORT)
 
-        url_map = URLMap(original=original_url, short=short)
+        url_map = URLMap(
+            original=original_url,
+            short=short or URLMap.get_unique_short()
+        )
         db.session.add(url_map)
         db.session.commit()
 

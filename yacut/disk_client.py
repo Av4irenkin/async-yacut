@@ -14,7 +14,7 @@ HEADERS = {
 }
 BASE_URL = Config.YANDEX_DISK_BASE_URL
 FOLDER_NAME = f'app:/{Config.YANDEX_DISK_FOLDER}'
-VALUE_ERROR_MESSAGE = 'API вернул статус 204 No Content'
+VALUE_ERROR = 'API вернул статус 204 No Content'
 
 
 class YaDiskUploader:
@@ -30,16 +30,8 @@ class YaDiskUploader:
             ) as response:
                 response.raise_for_status()
                 if response.status == HTTPStatus.NO_CONTENT:
-                    raise ValueError(VALUE_ERROR_MESSAGE)
+                    raise ValueError(VALUE_ERROR)
                 return await response.json()
-
-    async def create_folder(self, folder_path):
-        """Метод создания папки на Яндекс диске."""
-        try:
-            await self._make_request('PUT', f'resources?path={folder_path}')
-        except aiohttp.ClientResponseError as e:
-            if e.status != HTTPStatus.CONFLICT:
-                raise
 
     async def get_upload_link(self, file_path):
         """Метод получения ссылки для загрузки файла."""

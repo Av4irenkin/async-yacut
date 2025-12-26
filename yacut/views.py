@@ -1,12 +1,12 @@
-from flask import abort, flash, render_template, redirect
-
 from http import HTTPStatus
+
+from flask import abort, flash, render_template, redirect
 
 from yacut import app
 from yacut.constants import REDIRECT_VIEW_NAME
 from yacut.disk_client import disk_uploader
-from yacut.models import URLMap
 from yacut.forms import URLForm, FileUploadForm
+from yacut.models import URLMap
 
 
 SHORT_CREATION_ERROR = 'Ошибка при создании короткой ссылки'
@@ -30,8 +30,8 @@ def index_view():
                 validate=False
             ).get_short_url()
         )
-    except (RuntimeError, ValueError):
-        flash(SHORT_CREATION_ERROR)
+    except (RuntimeError, ValueError) as e:
+        flash(SHORT_CREATION_ERROR, str(e))
         return render_template('index.html', form=form)
 
 
@@ -55,29 +55,22 @@ def files_view():
 
     try:
         download_urls = disk_uploader.upload_files_sync(files)
-    except Exception:
-        flash(UPLOAD_ERROR)
+    except Exception as e:
+        flash(UPLOAD_ERROR, str(e))
         return render_template('files.html', form=form)
 
-    def process_file(file, download_url):
-        try:
-            return [{
-                'name': file.filename,
-                'short_url': URLMap.create(
-                    original_url=download_url,
-                    short=None,
-                    validate=True
-                ).get_short_url()
-            }]
-        except (RuntimeError, ValueError):
-            return []
-
-    return render_template(
-        'files.html',
-        form=form,
-        uploaded_files=[
-            result
-            for file, download_url in zip(files, download_urls)
-            for result in process_file(file, download_url)
-        ]
-    )
+    try:
+        return render_template(
+            'files.html',
+            form=form,
+            uploaded_files=[
+                dict(
+                    name=file.filename,
+                    short_url=URLMap.create(download_url).get_short_url()
+                )
+                for file, download_url in zip(files, download_urls)
+            ]
+        )
+    except (RuntimeError, ValueError) as e:
+        flash(SHORT_CREATION_ERROR, str(e))
+        return render_template('files.html', form=form)

@@ -21,12 +21,12 @@ SHORT_PLACEHOLDER = 'Необязательное поле'
 CREATE_BUTTON = 'Создать'
 CHOOSE_FILES_LABEL = 'Выберите файлы'
 UPLOAD_BUTTON = 'Загрузить'
-REQUIRED_FIELD_MESSAGE = 'Обязательное поле'
-INVALID_URL_MESSAGE_FORM = 'Введите корректный URL'
-MAX_LENGTH_MESSAGE = f'Не более {MAX_SHORT_LENGTH} символов'
-INVALID_CHARS_MESSAGE = 'Идентификатор должен содержать только буквы и цифры'
-CHOOSE_FILE_MESSAGE = 'Выберите хотя бы один файл'
-SHORT_EXISTS_MESSAGE_FORM = (
+REQUIRED_FIELD = 'Обязательное поле'
+INVALID_URL_FORM = 'Введите корректный URL'
+MAX_LENGTH = f'Не более {MAX_SHORT_LENGTH} символов'
+INVALID_CHARS = 'Идентификатор должен содержать только буквы и цифры'
+CHOOSE_FILE = 'Выберите хотя бы один файл'
+SHORT_EXISTS_FORM = (
     'Предложенный вариант короткой ссылки уже существует.'
 )
 
@@ -39,15 +39,15 @@ class URLForm(FlaskForm):
         if not field.data:
             return
         if field.data == FILES_ENDPOINT or URLMap.get(field.data):
-            raise ValidationError(SHORT_EXISTS_MESSAGE_FORM)
+            raise ValidationError(SHORT_EXISTS_FORM)
 
     original_link = URLField(
         LONG_LINK_LABEL,
         validators=[
-            DataRequired(message=REQUIRED_FIELD_MESSAGE),
-            URL(message=INVALID_URL_MESSAGE_FORM),
+            DataRequired(message=REQUIRED_FIELD),
+            URL(message=INVALID_URL_FORM),
             Length(max=MAX_ORIGINAL_LENGTH,
-                   message=MAX_LENGTH_MESSAGE)
+                   message=MAX_LENGTH)
         ],
     )
     custom_id = StringField(
@@ -55,9 +55,9 @@ class URLForm(FlaskForm):
         validators=[
             Optional(),
             Length(max=MAX_SHORT_LENGTH,
-                   message=MAX_LENGTH_MESSAGE),
+                   message=MAX_LENGTH),
             Regexp(SHORT_PATTERN,
-                   message=INVALID_CHARS_MESSAGE),
+                   message=INVALID_CHARS),
         ],
     )
     submit = SubmitField(
@@ -69,7 +69,7 @@ class FileUploadForm(FlaskForm):
     """Форма для загрузки файлов на Яндекс.Диск"""
     files = MultipleFileField(
         CHOOSE_FILES_LABEL,
-        validators=[DataRequired(message=CHOOSE_FILE_MESSAGE)],
+        validators=[DataRequired(message=CHOOSE_FILE)],
     )
     submit = SubmitField(
         UPLOAD_BUTTON,

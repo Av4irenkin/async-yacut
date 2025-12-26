@@ -1,14 +1,14 @@
-from flask import Blueprint, jsonify, request
-
 from http import HTTPStatus
+
+from flask import Blueprint, jsonify, request
 
 from yacut.error_handlers import APIError
 from yacut.models import URLMap
 
 
-LINK_REQUIRED_MESSAGE = '"url" является обязательным полем!'
+LINK_REQUIRED = '"url" является обязательным полем!'
 MISSING_REQUEST_BODY = 'Отсутствует тело запроса'
-SHORT_NOT_FOUND_MESSAGE = 'Указанный id не найден'
+SHORT_NOT_FOUND = 'Указанный id не найден'
 
 
 api_blueprint = Blueprint('api', __name__)
@@ -23,7 +23,7 @@ def create_short_link():
         raise APIError(MISSING_REQUEST_BODY)
 
     if 'url' not in data:
-        raise APIError(LINK_REQUIRED_MESSAGE)
+        raise APIError(LINK_REQUIRED)
 
     try:
         url_map = URLMap.create(
@@ -46,6 +46,6 @@ def get_original_link(short):
     """Метод получения оригинальной ссылки по короткому идентификатору."""
     url_map = URLMap.get(short)
     if not url_map:
-        raise APIError(SHORT_NOT_FOUND_MESSAGE, HTTPStatus.NOT_FOUND)
+        raise APIError(SHORT_NOT_FOUND, HTTPStatus.NOT_FOUND)
 
     return jsonify({'url': url_map.original})
